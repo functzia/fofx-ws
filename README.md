@@ -7,8 +7,9 @@ An input/output plugin for WebSockets for [fofx](https://github.com/functzia/fof
   - **port [int]** this is the port your server listens on (default: 8080)
 - **input params (these go in your _nano.json_ input key)**:
   - **endpoint [string]** this will trigger on a request to http://localhost:\<port\>/ws/\<endpoint\>
+  - **broadcast [bool]** should the return value be broadcasted to all clients connected to the endpoint
 - **output params (these go in your _nano.json_ output key):**
-  - **url [string]** create a WebSocket client bound to this url, and send the nano's output to its server.
+  - **url [string]** create a WebSocket client bound to this url, and send the nano's output to its server
 
 ## Sample _plugins.json_
 

@@ -33,24 +33,43 @@ module.exports = function fofxWs({ port = 8080 }, log) {
     log.info(`Listening on ws://localhost:${port}/ws/:endpoint`)
   );
   const endpoints = {};
+  const clients = {};
   wss.on('connection', (ws, { url }) => {
     const match = matchUrl('/ws/:endpoint', url);
     if (match) {
-      ws.on('message', message => {
-        const { endpoint } = match;
-        const execute = endpoints[endpoint];
+      const { endpoint } = match;
+      if (!clients[endpoint]) {
+        clients[endpoint] = new Set();
+      }
+      clients[endpoint].add(ws);
+      ws.once('close', () => {
+        clients[endpoint].delete(ws);
+        if (!clients[endpoint].size) {
+          delete clients[endpoint];
+        }
+      });
+      ws.on('message', async message => {
+        const { execute, broadcast } = endpoints[endpoint] || {};
         if (execute) {
-          execute(getActualMessage(message));
+          const result = await execute(getActualMessage(message));
+          if (result.ok && broadcast && clients[endpoint]) {
+            for (const socket of clients[endpoint]) {
+              socket.send(sendAcutalMessage(result.value));
+            }
+          }
+        } else {
+          log.warn(`No endpoint found for ${endpoint}`);
         }
       });
     } else {
+      log.error('Rogue path accessed. Socket dropped.');
       ws.close();
     }
   });
   return {
     type: 'ws',
-    input({ endpoint }, execute) {
-      endpoints[endpoint] = execute;
+    input({ endpoint, broadcast = false }, execute) {
+      endpoints[endpoint] = { execute, broadcast };
     },
     output({ url }) {
       const client = new WebSocket(url);
