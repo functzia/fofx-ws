@@ -1,4 +1,17 @@
 const WebSocket = require('ws');
+const { matchPattern } = require('url-matcher');
+
+function matchUrl(rule, url) {
+  const match = matchPattern(rule, url);
+  if (!match) {
+    return;
+  }
+  const { paramNames, paramValues } = match;
+  return paramNames.reduce(
+    (params, name, idx) => Object.assign(params, { [name]: paramValues[idx] }),
+    {}
+  );
+}
 
 function getActualMessage(msg) {
   try {
@@ -17,18 +30,27 @@ function sendAcutalMessage(msg) {
 
 module.exports = function fofxWs({ port = 8080 }, log) {
   const wss = new WebSocket.Server({ port }, () =>
-    log.info(`Listening on ws://localhost:${port}`)
+    log.info(`Listening on ws://localhost:${port}/ws/:endpoint`)
   );
-  const inputCallbacks = [];
-  wss.on('connection', ws => {
-    ws.on('message', message => {
-      inputCallbacks.forEach(execute => execute(getActualMessage(message)));
-    });
+  const endpoints = {};
+  wss.on('connection', (ws, { url }) => {
+    const match = matchUrl('/ws/:endpoint', url);
+    if (match) {
+      ws.on('message', message => {
+        const { endpoint } = match;
+        const execute = endpoints[endpoint];
+        if (execute) {
+          execute(getActualMessage(message));
+        }
+      });
+    } else {
+      ws.close();
+    }
   });
   return {
     type: 'ws',
-    input(_options, execute) {
-      inputCallbacks.push(execute);
+    input({ endpoint }, execute) {
+      endpoints[endpoint] = execute;
     },
     output({ url }) {
       const client = new WebSocket(url);

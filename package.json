@@ -7,6 +7,7 @@
   "author": "Alon Niv <oakfang@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "url-matcher": "^0.2.2",
     "ws": "^6.1.0"
   }
 }
